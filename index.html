@@ -225,7 +225,7 @@ h2.page{font-size:26px;margin-top:18px}
 <header class="top"><div class="wrap" style="padding-block:0">
   <div class="brand">
     <h1><span class="jib" aria-hidden="true"></span>Chorégraphie Grue</h1>
-    <div class="hdrbtns"><button class="iconbtn" id="btnAccueil" type="button">Accueil</button><button class="iconbtn" id="btnLogout" type="button" data-act="acc-logout">Déconnexion</button><button class="iconbtn" id="btnReglages" type="button">Réglages</button></div>
+    <div class="hdrbtns"><button class="iconbtn" id="btnAccueil" type="button">Accueil</button><button class="iconbtn" id="btnLogout" type="button" data-act="acc-logout">Déconnexion</button><button class="iconbtn" id="btnEquipe" type="button">Équipe</button><button class="iconbtn" id="btnReglages" type="button">Réglages</button></div>
   </div>
   <div class="sessbar" id="sessionBar" hidden></div>
   <div class="datebar">
@@ -466,7 +466,7 @@ function suggestedDur(k){const r=reg();if(r.durees[k])return Number(r.durees[k])
 
 /* ---------- db ---------- */
 /* ---------- accueil et accès (parcours de test) ---------- */
-const ROLES={chef_chantier:"Chef de chantier",chef_manoeuvre:"Chef de manœuvre",chef_equipe:"Chef d'équipe",elingueur:"Élingueur",grutier:"Grutier"};
+const ROLES={chef_chantier:"Chef de chantier",chef_manoeuvre:"Chef de manœuvre",chef_equipe:"Chef d'équipe",elingueur:"Élingueur",grutier:"Grutier",assistant_chef_chantier:"Assistant chef de chantier"};
 const STATUTS={attente:["Code non utilisé","run"],actif:["Actif","ok"],suspendu:["Suspendu","souple"],fin_mission:["Fin de mission",""],bloque:["Bloqué","bad"]};
 const norm=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").trim().toLowerCase();
 const okMail=s=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
@@ -480,7 +480,7 @@ function plusUnMois(iso){const d=new Date(iso);d.setMonth(d.getMonth()+1);return
 function saveSession(){try{if(S.session)localStorage.setItem("cg-session",JSON.stringify(S.session));else localStorage.removeItem("cg-session")}catch(e){}}
 function applyRole(){
   const b=S.base;if(!b)return;const r=S.session&&S.session.role;
-  if(!r||r==="chef_chantier"||r==="chef_manoeuvre"){S.isChef=b.isChef;S.canWrite=b.canWrite;S.canAsk=b.canAsk}
+  if(!r||r==="chef_chantier"||r==="assistant_chef_chantier"||r==="chef_manoeuvre"){S.isChef=b.isChef;S.canWrite=b.canWrite;S.canAsk=b.canAsk}
   else if(r==="chef_equipe"){S.isChef=false;S.canWrite=false;S.canAsk=true}
   else{S.isChef=false;S.canWrite=false;S.canAsk=false}
 }
@@ -505,7 +505,7 @@ function accHome(){
   const s=S.session;let h="";
   if(s){
     h+=`<div class="sec"><h3>Connecté</h3><p style="margin:0"><b>${esc(s.prenom)} ${esc(s.nom)}</b> · ${esc(s.roleLabel)}<br><span class="muted">Chantier ${esc(s.chantierNom)} (${esc(s.ident)})</span></p><div class="actions">`;
-    if(s.role==="chef_chantier")h+=`<button class="btn pri" data-act="acc-go" data-v="space" type="button">Espace chantier</button>`;
+    if(canManage())h+=`<button class="btn pri" data-act="acc-go" data-v="space" type="button">Équipe du chantier</button>`;
     h+=`<button class="btn" data-act="close" type="button">Ouvrir le planning</button><button class="btn danger" data-act="acc-logout" type="button">Se déconnecter</button></div></div>`;
   } else {
     h+=`<div class="list"><button class="item" data-act="acc-go" data-v="create" type="button" style="text-align:left;cursor:pointer"><b style="font-size:18px">Créer un chantier</b><p class="muted">Pour le chef de chantier : entreprise, chantier, adresse, dates. Un identifiant et un code sont générés.</p></button><button class="item" data-act="acc-go" data-v="login" type="button" style="text-align:left;cursor:pointer"><b style="font-size:18px">Se connecter</b><p class="muted">Identifiant du chantier, nom, prénom, mail et code reçu du chef de chantier.</p></button></div>`;
@@ -543,9 +543,9 @@ function accMailbox(){
   h+=`<div class="list">`+S.mails.map((m,i)=>`<div class="item"><div class="h"><b>${esc(m.objet)}</b><span class="muted" style="font-size:12.5px">${esc(m.at)}</span></div><p class="muted" style="font-size:13px">À : ${esc(m.to)}</p><p>${esc(m.corps)}</p>${m.code?`<div class="codebox">${esc(m.code)}</div>`:""}${m.action&&!m.done?`<div class="actions"><button class="btn pri" data-act="acc-verify" data-i="${i}" type="button">Confirmer mon adresse</button></div>`:""}${m.done?`<p class="muted">Lien utilisé</p>`:""}</div>`).join("")+`</div>`;
   return h;
 }
-function accSpace(){
+function canManage(){const r=S.session&&S.session.role;return r==="chef_chantier"||r==="assistant_chef_chantier"} function accSpace(){
   const s=S.session;
-  if(!s||s.role!=="chef_chantier")return `<div class="empty">L'espace chantier est réservé au chef de chantier connecté.</div>`;
+  if(!canManage())return `<div class="empty">Pour créer les espaces de l'équipe (grutier, chef d'équipe, chef de manœuvre, assistant), connectez-vous d'abord en tant que <b>chef de chantier</b> ou <b>assistant chef de chantier</b>.</div>`;
   const ch=S.chantiers.find(c=>c.id===s.chantierId);if(!ch)return `<div class="empty">Chantier introuvable.</div>`;
   const A=S.acc;
   let h=`<div class="sec">${ch.logoId?`<img src="${blobUrl(ch.logoId)}" alt="Logo" style="max-height:48px;max-width:160px;margin-bottom:6px">`:""}<h3>${esc(ch.nom)}</h3><p style="margin:0">${esc(ch.entreprise)} · ${esc(ch.adresse)}<br><span class="muted">Du ${esc(dateLong(ch.debut))} au ${esc(dateLong(ch.fin))}</span></p><div class="lbl" style="margin-top:8px">Identifiant du chantier</div><div class="codebox">${esc(ch.ident)}</div></div>`;
@@ -556,7 +556,7 @@ function accSpace(){
     const st=STATUTS[p.statut]||[p.statut,""];const conf=A.confirm&&A.confirm.id===p.id?A.confirm.v:null;
     h+=`<div class="item"><div class="h"><b>${esc(roleLabel(p))}</b><span class="chip ${st[1]}">${esc(st[0])}</span></div><p>${esc(p.prenom)} ${esc(p.nom)}</p><p class="muted" style="font-size:13px">${esc(p.mail)}${p.carte?" · carte BTP "+esc(p.carte):""}</p>`;
     if((p.statut==="fin_mission"||p.statut==="bloque")&&p.quitteLe)h+=`<p class="muted" style="font-size:13px">Données personnelles conservées jusqu'au ${esc(dateLong(plusUnMois(p.quitteLe)))}, puis identité effacée.</p>`;
-    if(p.role!=="chef_chantier"){
+    if(p.role!=="chef_chantier"&&!(S.session&&S.session.role==="assistant_chef_chantier"&&p.role==="assistant_chef_chantier")){
       if(conf)h+=`<div class="actions"><span style="align-self:center">${conf==="fin"?"Mettre fin à la mission de cette personne ?":"Bloquer l'accès de cette personne à ce chantier ?"}</span><button class="btn danger" data-act="acc-pconfirm" data-id="${p.id}" data-v="${conf}" type="button">Confirmer</button><button class="btn" data-act="acc-pcancel" type="button">Annuler</button></div>`;
       else{
         let b="";
@@ -571,8 +571,8 @@ function accSpace(){
   }
   h+=`</div>`;
   if(A.newPoste){
-    h+=`<div class="sec"><h3>Nouveau poste</h3><div class="fld"><label for="npRole">Poste</label><select id="npRole"><option value="chef_manoeuvre">Chef de manœuvre</option><option value="chef_equipe">Chef d'équipe</option><option value="elingueur">Élingueur</option><option value="grutier">Grutier (numéroté automatiquement)</option></select></div><div class="two">${fld("npNom","Nom","")}${fld("npPre","Prénom","")}</div>${fld("npCarte","Numéro de carte BTP (fictif pour le test)","")}${fld("npMail","Adresse mail","",'type="email" inputmode="email"')}<div class="actions"><button class="btn pri" data-act="acc-posteadd" type="button">Créer le poste et générer le code</button><button class="btn" data-act="acc-newposte" type="button">Annuler</button></div></div>`;
-  } else h+=`<div class="actions"><button class="btn pri" data-act="acc-newposte" type="button">+ Créer un poste</button></div>`;
+    h+=`<div class="sec"><h3>Nouvel espace d'équipe</h3><div class="fld"><label for="npRole">Poste</label><select id="npRole"><option value="grutier">Grutier (numéroté automatiquement)</option><option value="chef_equipe">Chef d'équipe</option><option value="chef_manoeuvre">Chef de manœuvre</option>${S.session.role==="chef_chantier"?`<option value="assistant_chef_chantier">Assistant chef de chantier</option>`:""}<option value="elingueur">Élingueur</option></select></div><div class="two">${fld("npNom","Nom","")}${fld("npPre","Prénom","")}</div>${fld("npCarte","Numéro de carte BTP (fictif pour le test)","")}${fld("npMail","Adresse mail","",'type="email" inputmode="email"')}<div class="actions"><button class="btn pri" data-act="acc-posteadd" type="button">Créer l'espace et générer le code</button><button class="btn" data-act="acc-newposte" type="button">Annuler</button></div></div>`;
+  } else h+=`<div class="actions"><button class="btn pri" data-act="acc-newposte" type="button">+ Créer un espace (grutier, chef d'équipe…)</button></div>`;
   return h;
 }
 function pushMail(m){S.mails.unshift({...m,at:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})})}
@@ -648,7 +648,7 @@ async function accAction(a,el){
       if(!ok)return;pushMail({to:p.mail,objet:"Votre nouveau code",corps:"Voici votre nouveau code de connexion. L'ancien code n'est plus valable.",code})}
     A.view="mailbox";A.msg="Si l'adresse correspond à un poste, un nouveau code vient d'être envoyé (simulé ci-dessous).";return drawAccueil();
   }
-  if(a==="acc-posteadd"){
+  if(a==="acc-posteadd"){ if(!canManage())return fail("Réservé au chef de chantier ou à son assistant.");
     const s=S.session;const role=v("npRole"),nom=v("npNom").trim(),prenom=v("npPre").trim(),carte=v("npCarte").trim(),mail=v("npMail").trim().toLowerCase();
     if(!nom||!prenom||!mail)return fail("Nom, prénom et adresse mail sont obligatoires.");
     if(!okMail(mail))return fail("Adresse mail invalide.");
@@ -1099,7 +1099,7 @@ document.getElementById("prevDay").onclick=()=>{S.date=addDays(S.date,-1);render
 document.getElementById("nextDay").onclick=()=>{S.date=addDays(S.date,1);render()};
 document.getElementById("goToday").onclick=()=>{S.date=todayStr();render()};
 document.getElementById("fab").onclick=()=>{taskForm(null);if(!S.canWrite){F._mode="ask";drawTaskForm()}};
-document.getElementById("btnAccueil").onclick=()=>{S.acc={view:"home"};drawAccueil()};
+document.getElementById("btnEquipe").onclick=()=>{S.acc={view:"space"};drawAccueil()};document.getElementById("btnAccueil").onclick=()=>{S.acc={view:"home"};drawAccueil()};
 document.getElementById("btnReglages").onclick=()=>{confirmDel=false;S.moisSel=undefined;reglagesForm()};
 document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;render();window.scrollTo(0,0)});
 
