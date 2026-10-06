@@ -25,7 +25,7 @@ if(!(window.claude&&window.claude.use)){(function(){
     onSnapshot:(ok)=>{const f=()=>{const v=(data[c]||{})[id];ok({exists:!!v,id,data:()=>v?JSON.parse(JSON.stringify(v)):undefined})};(subs[c]=subs[c]||[]).push(f);setTimeout(f,0);return()=>{subs[c]=subs[c].filter(x=>x!==f)}}});
   const db={
     collection:c=>({
-      doc:id=>docRef(c,id),
+      doc:id=>docRef(c,id||rid()),
       add:async v=>{const id=rid();put(c,id,{...v});return docRef(c,id)},
       onSnapshot:(ok)=>{(subs[c]=subs[c]||[]).push(ok);setTimeout(()=>ok(snap(c)),0);return()=>{subs[c]=subs[c].filter(f=>f!==ok)}}
     }),
